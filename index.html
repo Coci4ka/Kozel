@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Козел Online</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .game-type {
+            display: grid;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .btn {
+            padding: 15px 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #2196F3;
+            color: white;
+        }
+        
+        .card {
+            width: 60px;
+            height: 90px;
+            background: white;
+            border: 2px solid #333;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin: 5px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .card.hearts { color: #e74c3c; }
+        .card.diamonds { color: #e74c3c; }
+        .card.clubs { color: #2c3e50; }
+        .card.spades { color: #2c3e50; }
+        
+        .game-area {
+            display: none;
+            text-align: center;
+        }
+        
+        .player-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🐐 Козел Online</h1>
+            <p>Игра загружена в Telegram</p>
+        </div>
+        
+        <div class="player-info">
+            <h3>Добро пожаловать!</h3>
+            <p id="playerName">Загрузка...</p>
+        </div>
+        
+        <div class="game-type">
+            <button class="btn btn-primary" onclick="startGame('solo')">
+                🎯 Играть по одному
+            </button>
+            <button class="btn btn-secondary" onclick="startGame('teams')">
+                👥 Играть парами
+            </button>
+        </div>
+        
+        <div id="gameArea" class="game-area">
+            <h3>Ваши карты:</h3>
+            <div id="cardsContainer"></div>
+            <div style="margin-top: 20px;">
+                <button class="btn" onclick="attack()" style="background: #ff9800; color: white;">Атаковать</button>
+                <button class="btn" onclick="defend()" style="background: #f44336; color: white;">Защищаться</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Инициализация Telegram Web App
+        let tg = window.Telegram.WebApp;
+        
+        // Расширяем на весь экран
+        tg.expand();
+        
+        // Получаем данные пользователя
+        let user = tg.initDataUnsafe.user;
+        if (user) {
+            document.getElementById('playerName').textContent = 
+                `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Анонимный игрок';
+        }
+        
+        // Показываем основную кнопку
+        tg.MainButton.setText("Начать игру");
+        tg.MainButton.show();
+        
+        tg.MainButton.onClick(function() {
+            tg.showPopup({
+                title: "Игра началась!",
+                message: "Пригласите друзей в игру!",
+                buttons: [{ type: "ok" }]
+            });
+        });
+        
+        function startGame(type) {
+            document.getElementById('gameArea').style.display = 'block';
+            tg.showAlert(`Игра "${type === 'solo' ? 'По одному' : 'Парами'}" началась!`);
+            
+            // Генерация тестовых карт
+            generateCards();
+        }
+        
+        function generateCards() {
+            const suits = ['♥', '♦', '♣', '♠'];
+            const ranks = ['6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+            
+            let cards = [];
+            for (let i = 0; i < 6; i++) {
+                const suit = suits[Math.floor(Math.random() * suits.length)];
+                const rank = ranks[Math.floor(Math.random() * ranks.length)];
+                cards.push({ suit, rank });
+            }
+            
+            displayCards(cards);
+        }
+        
+        function displayCards(cards) {
+            const container = document.getElementById('cardsContainer');
+            container.innerHTML = cards.map((card, index) => 
+                `<div class="card ${getSuitClass(card.suit)}" onclick="playCard(${index})">
+                    ${card.rank}${card.suit}
+                </div>`
+            ).join('');
+        }
+        
+        function getSuitClass(suit) {
+            switch(suit) {
+                case '♥': return 'hearts';
+                case '♦': return 'diamonds';
+                case '♣': return 'clubs';
+                case '♠': return 'spades';
+                default: return '';
+            }
+        }
+        
+        function playCard(index) {
+            tg.HapticFeedback.impactOccurred('medium');
+            tg.showAlert(`Карта ${index + 1} сыграна!`);
+        }
+        
+        function attack() {
+            tg.showPopup({
+                title: "Атака!",
+                message: "Вы начинаете атаку",
+                buttons: [{ type: "default", text: "OK" }]
+            });
+        }
+        
+        function defend() {
+            tg.showPopup({
+                title: "Защита!",
+                message: "Вы защищаетесь",
+                buttons: [{ type: "default", text: "OK" }]
+            });
+        }
+        
+        // Отправка данных в бота
+        function sendDataToBot(data) {
+            tg.sendData(JSON.stringify(data));
+        }
+        
+        // Обработчик данных от бота
+        tg.onEvent('viewportChanged', function() {
+            console.log('Viewport changed');
+        });
+    </script>
+</body>
+</html>
